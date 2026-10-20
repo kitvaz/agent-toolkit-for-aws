@@ -3,8 +3,19 @@
 > Canonical Bedrock model Active/Legacy/EOL registry and the 90-day exclusion
 > rule. Source-cloud agnostic: it is a property of Bedrock's model catalog.
 > Vendored into each consuming skill as
-> `references/vendored/ai/ai-model-lifecycle.md` and kept byte-identical by
-> `shared:check`; edit HERE, then run `shared:sync`.
+> `references/vendored/ai/ai-model-lifecycle.md`. Edit HERE, then copy over
+> every vendored copy in the same change. Drift between the copies (or a
+> missing / malformed freshness contract below) fails
+> `python3 plugins/aws-startup-advisor/tools/model-staleness.py` regardless of
+> flags. The same check runs in CI only on pull requests that touch
+> `plugins/aws-startup-advisor/`, with `--strict`, so a stale **Last updated**
+> date fails that pull request rather than a scheduled job.
+
+<!-- freshness-contract: enforced by plugins/aws-startup-advisor/tools/model-staleness.py -->
+
+**Last updated:** 2026-09-21
+
+**Staleness window:** 45 days
 
 References:
 
@@ -72,7 +83,7 @@ For models launched before 2026-09-07, the [legacy lifecycle table](https://docs
 | Jamba 1.5 Large    | `ai21.jamba-1-5-large-v1:0`               | 2026-11-26 | 52          | **excluded** | —                       |
 | Jamba 1.5 Mini     | `ai21.jamba-1-5-mini-v1:0`                | 2026-11-26 | 52          | **excluded** | —                       |
 | Marengo Embed v2.7 | `twelvelabs.marengo-embed-2-7-v1:0`       | 2026-11-30 | 56          | **excluded** | Marengo Embed 3.0       |
-| Claude Opus 4.1    | `anthropic.claude-opus-4-1-20250805-v1:0` | 2027-01-08 | 95          | legacy       | Claude Opus 4.8 / 4.6   |
+| Claude Opus 4.1    | `anthropic.claude-opus-4-1-20250805-v1:0` | 2027-01-08 | 95          | legacy       | Claude Opus 5.5; Opus 4.6 for Batch   |
 
 **Notes (as of Oct 5, 2026):** Claude Sonnet 4, Jamba 1.5 Large / Mini, and Marengo Embed v2.7 are inside the 90-day exclusion zone (`excluded`, not `legacy`) — they must not appear in recommendation or comparison tables. Jamba 1.5 Large / Mini are also in public extended access, so provider pricing may increase. Claude Opus 4.1 is the only row still outside the exclusion zone (95 days; it enters the zone on 2026-10-10). Nova Canvas v1 and Nova Reel v1 passed their 2026-09-30 EOL date and moved to Removed.
 
@@ -133,7 +144,7 @@ When building the model comparison table:
 - **Active**: no restrictions.
 - **Restricted** (`restricted (…)` in the pricing-cache Status column): never `recommended_model` or `backup_model`, never a default in a mapping guide. Include in `model_comparison` only when the user explicitly asks about frontier / Covered Models, annotated with the access requirement.
 
-### Pricing Cache (`pricing-cache.md`)
+### Pricing Cache (`bedrock-pricing-cache.md`)
 
 The multi-provider quick reference table includes a `Status` column:
 
@@ -161,6 +172,6 @@ When refreshing the cache, recompute `days_to_eol` and refresh the `active` / `l
 
 **Newer models are not covered by the table.** A model launched on or after 2026-09-07 will never appear in the Legacy/EOL table above, and its absence is not evidence that it is Active. When a candidate is not in the table, verify it by calling `GetFoundationModel` (or `ListFoundationModels`) and reading `modelLifecycle.status`: `LEGACY` and `EOL` are never valid targets for a new migration. If the model is Legacy, read its model card for the actual EOL date and whether the Legacy period is 6 months or 45 days. If neither the API nor the card is reachable, treat the model's lifecycle as **unverified** and say so in the output rather than inferring `active` from a `Status` column in a pricing cache.
 
-**Periodic table refresh:** When the table itself needs updating (new models added, EOL dates changed by AWS, or past-EOL rows to remove), update this file and `pricing-cache.md` together. Edit the canonical `skills/shared/ai/ai-model-lifecycle.md`, then copy it over every vendored copy in the same change so they stay byte-identical.
+**Periodic table refresh:** When the table itself needs updating (new models added, EOL dates changed by AWS, or past-EOL rows to remove), update this file and `bedrock-pricing-cache.md` together. Edit the canonical files under `skills/shared/ai/`, then copy them over every vendored copy in the same change so they stay byte-identical. Bump the **Last updated** line at the top of this file. `plugins/aws-startup-advisor/tools/model-staleness.py` fails when a vendored copy has drifted or the freshness contract is missing/malformed. CI runs that check with `--strict` only for pull requests that touch `plugins/aws-startup-advisor/`, so a snapshot past the 45-day staleness window fails those pull requests.
 
 **Past-EOL rows:** Once `days_to_eol ≤ 0`, move the model out of the live table into **Removed**, and grep this plugin's skill trees for the model ID to catch any remaining reference to it as a target. Keep the Removed entry long enough that users already on the model still get a warning.
